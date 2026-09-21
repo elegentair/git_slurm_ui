@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 keyring = "4.2.0"
 secrecy = "0.10.3"
+dialoguer = "0.12.0"
