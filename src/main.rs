@@ -1,86 +1,103 @@
-use std::io::stdin;
-use std::process::exit;
-use dialoguer::Password;
-use keyring::Entry;
-use secrecy::{SecretString, ExposeSecret};
-
+use std::os::unix::fs::PermissionsExt;
+use std::{env, io, fs};
+use std::process::{exit, id, Command};
 fn main() {
-    println!("SLURM JOB SUBMISSION");
+    // intro
+    let borderchar = "------------------------------------------------------";
+    println!("SLURM Job Submission");
+    println!("{borderchar}");
 
-    // get github username
-    let mut gh_username = String::new();
-    println!("Please enter a valid github username: ");
-    stdin().read_line(&mut gh_username).expect("IO Error: Failed to read input from terminal!");
-    // must be trimmed to remove new line:
-    let gh_username = gh_username.trim();
+    // get git url for repo to be cloned
+    println!("Please enter the url of the git repository to be used (ex: https://github.com/my_account/repo_name.git");
+    let mut git_url = String::new();
+    io::stdin().read_line(&mut git_url).expect("Could not read from stdin!");
 
-    if gh_username.is_empty() {
-        eprintln!("Error: No username provided!");
+    // rclone configuration:
+
+    // get home dir
+    let home = env::var("HOME").unwrap_or_else(|e| {
+        eprintln!("Error: Could not capture home environment variable! Full Error: {e}");
         exit(1);
+    });
+
+    // get pid
+    let id = id();
+
+    // build rclone config dir
+    let config_dir = format!("{home}/git_slurm_ui/{id}");
+
+    // create config dir (uses create_dir_all to create all nested dirs in provided path)
+    fs::create_dir_all(&config_dir).unwrap_or_else(|e| {
+        eprintln!("Error: Could not create configuration directory! Full Error: {e}");
+    });
+
+    // build rclone config file path:
+    let config_file = format!("{config_dir}/rclone.conf");
+
+    // issue rclone command to open browser for user to authenticate:
+    let rcmd = Command::new("rclone").args(["config", "create", "gdrive", "drive", "config_is_local", "true", "--config", &config_file]).status().unwrap_or_else(|e| {
+        eprintln!("Could not launch rclone! Is it installed? Full Error: {e}");
+        exit_rclone_rm(&config_dir);
+    });
+
+    // if it fails, make sure configuration dir is removed before exit:
+    if !rcmd.success() {
+        eprintln!("Error with rclone! git_slurm_ui terminatng! See above error messages!");
+        exit_rclone_rm(&config_dir);
     }
 
-    // get project repo name:
-    let mut repo_name = String::new();
-    println!("Please enter the GitHub repository name of the project you wish to run: ");
-    stdin().read_line(&mut repo_name).expect("IO Error: Failed to read input from terminal!");
-    let repo_name = repo_name.trim();
 
-    if repo_name.is_empty() {
-        eprintln!("Error: No repository name provided!");
-        exit(1);
-    }
+    // set permissions on rclone config path so others can not read it:
+    fs::set_permissions(&config_file, fs::Permissions::from_mode(0700)).unwrap_or_else(|e| {
+        eprintln!("Error: Could not set config file permissions! Full error: {e}");
+        exit_rclone_rm(&config_dir);
+    });
 
     // Ask if project has been approved
     println!("Has this job been approved by faculty to run on the computer?");
     println!("\'Y\' for Yes and \'N\' for No");
     let mut approved = String::new();
-    stdin().read_line(&mut approved).expect("IO Error: Failed to read input from terminal!");
+    io::stdin().read_line(&mut approved).expect("IO Error: Failed to read input from terminal!");
     let approved = approved.trim();
 
+    // check if it is empty
     if approved.is_empty() {
         eprintln!("Error: No approval response provided! Please obtain approval from faculty if not already approved and try again!");
-        exit(1);
+        exit_rclone_rm(&config_dir);
     }
 
+    // if not approved, remove configuration file and exit
     if approved != "Y" && approved != "y" {
         eprintln!("Error! Job needs to be manually reviewed and approved before being submitted! Get approval from facutly and submit again!");
-        exit(1);
+        exit_rclone_rm(&config_dir);
     }
-
-    // Construct github repo url:
-    let repo_url = format!("https://github.com/{gh_username}/{repo_name}.git");
-
-    // SECURELY get project PAT
-    let inp = Password::new().with_prompt("Please enter the personal access token to your github account so results can be uploaded").interact().unwrap_or_else(|e|      
-    {
-        eprintln!("Error grabbing access token: {e}");
-        exit(1);
-    });
-    // .into() converts it into a boxed string (b/c that is the kind the func. expects)
-    let pat = SecretString::new(inp.into());
-
-    // Put PAT into OS keyring for secure storage!
-    let key_entry = Entry::new("DGX_GH_Slurm_Frontend", &gh_username).unwrap_or_else(|e| {
-        eprintln!("Not a valid keyring entry, error: {e}");
-        exit(1);
-    });
-
-    key_entry.set_password(pat.expose_secret()).unwrap_or_else(|e| 
-    {
-        eprintln!("Could not set keyring entry!, error: {e}");
-        exit(1);
-    });
 
     // Ask for the job name
     println!("What should the job name be?");
     let mut job_name = String::new();
-    stdin().read_line(&mut job_name).expect("IO Error: Failed to read input from terminal!");
+    io::stdin().read_line(&mut job_name).expect("IO Error: Failed to read input from terminal!");
     let job_name = job_name.trim();
 
     if job_name.is_empty() {
         eprintln!("Error: No job name provided!");
-        exit(1);
+        exit_rclone_rm(&config_dir);
     }
+    // temporary, program not done and needs to remove secrets:
+    fs::remove_dir_all(&config_dir).unwrap_or_else(|e| {
+        let emsg = format!("Error: Failed to remove rclone config, student account tokens are still present! Please remove the directory: {config_dir} Full error: {e}");
+        eprintln!("{emsg}");
+        exit(1);
+    });
+    exit(0);
 
-    println!("Your job has been queued!");
+}
+
+// function to remove config file or warn user, so this code does not need to be repeated with every possible error
+fn exit_rclone_rm(path: &str) -> ! {
+    fs::remove_dir_all(path).unwrap_or_else(|e| {
+        let emsg = format!("Error: Failed to remove rclone config, student account tokens are still present! Please remove the directory: {path} Full error: {e}");
+        eprintln!("{emsg}");
+        exit(1);
+    });
+    exit(1);
 }
