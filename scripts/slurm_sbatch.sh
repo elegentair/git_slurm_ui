@@ -3,7 +3,7 @@
 
 #SBATCH --nodes=1
 #SBATCH --gpus=1
-#SBATCH --cpus-per-task=12
+#SBATCH --cpus-per-task=1
 
 WORKDIR=${HOME}/git_slurm_ui/slurm_${SLURM_JOB_ID}
 GIT_URL=$1

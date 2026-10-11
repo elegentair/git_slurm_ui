@@ -48,7 +48,7 @@ fn main() {
 
 
     // set permissions on rclone config path so others can not read it:
-    fs::set_permissions(&config_file, fs::Permissions::from_mode(0700)).unwrap_or_else(|e| {
+    fs::set_permissions(&config_file, fs::Permissions::from_mode(0o700)).unwrap_or_else(|e| {
         eprintln!("Error: Could not set config file permissions! Full error: {e}");
         exit_rclone_rm(&config_dir);
     });
