@@ -9,7 +9,7 @@ WORKDIR=${HOME}/git_slurm_ui/slurm_${SLURM_JOB_ID}
 GIT_URL=$1
 RCLONE_CONF=$2
 
-mkdir "${WORKDIR}"
+set -e
 
 git clone "${GIT_URL}" "${WORKDIR}"
 

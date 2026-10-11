@@ -12,6 +12,8 @@ fn main() {
     let mut git_url = String::new();
     io::stdin().read_line(&mut git_url).expect("Could not read from stdin!");
 
+    let git_url = git_url.trim();
+
     // rclone configuration:
 
     // get home dir
