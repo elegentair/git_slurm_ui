@@ -86,12 +86,12 @@ fn main() {
     }
 
     // submit slurm job
-    let slurm_workdir = format!("{home}/git_slurm_ui/slurm_%j");
+    let slurm_outfi = format!("{home}/git_slurm_ui/slurmdir_%j/slurm_out");
     
-    let sbat = Command::new("sbatch").args(["--job-name", &job_name, "--output", &slurm_workdir])
+    let sbat = Command::new("sbatch").args(["--job-name", &job_name, "--output", &slurm_outfi])
     .arg("slurm_sbatch.sh")
     .arg(&git_url)
-    .arg(&config_file)
+    .arg(&config_dir)
     .status().unwrap_or_else(|e| {
         eprintln!("Error: Could not issue sbatch command! Is it installed? Full error: {e}");
         exit_rclone_rm(&config_dir);
