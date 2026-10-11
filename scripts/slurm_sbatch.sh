@@ -16,7 +16,6 @@ git clone "${GIT_URL}" "${WORKDIR}"
 cd "${WORKDIR}"
 
 chmod +x job.sh
-
 ./job.sh
 
 TIME=$(date "+%m-%d-%Y_%H:%M")

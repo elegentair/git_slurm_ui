@@ -82,13 +82,23 @@ fn main() {
         eprintln!("Error: No job name provided!");
         exit_rclone_rm(&config_dir);
     }
-    // temporary, program not done and needs to remove secrets:
-    fs::remove_dir_all(&config_dir).unwrap_or_else(|e| {
-        let emsg = format!("Error: Failed to remove rclone config, student account tokens are still present! Please remove the directory: {config_dir} Full error: {e}");
-        eprintln!("{emsg}");
-        exit(1);
+
+    // submit slurm job
+    let slurm_workdir = format!("{home}/git_slurm_ui/slurm_%j");
+    
+    let sbat = Command::new("sbatch").args(["--job-name", &job_name, "--output", &slurm_workdir])
+    .arg("slurm_sbatch.sh")
+    .arg(&git_url)
+    .arg(&config_file)
+    .status().unwrap_or_else(|e| {
+        eprintln!("Error: Could not issue sbatch command! Is it installed? Full error: {e}");
+        exit_rclone_rm(&config_dir);
     });
-    exit(0);
+
+    if !sbat.success() {
+        eprintln!("Error with sbatch command! git_slurm_ui terminatng! See above error messages!");
+        exit_rclone_rm(&config_dir);
+    }
 
 }
 
