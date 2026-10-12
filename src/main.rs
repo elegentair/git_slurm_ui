@@ -86,7 +86,7 @@ fn main() {
     }
 
     // submit slurm job
-    let slurm_outfi = format!("{home}/git_slurm_ui/slurmdir_%j/slurm_out");
+    let slurm_outfi = format!("{home}/git_slurm_ui/slurmout_%j/slurm_out");
     
     let sbat = Command::new("sbatch").args(["--job-name", &job_name, "--output", &slurm_outfi])
     .arg("slurm_sbatch.sh")

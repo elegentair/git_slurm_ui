@@ -22,6 +22,9 @@ echo "Job Success!"
 
 rclone copy "${WORKDIR}" "gdrive:slurm_jobs/${TIME}" --config "${RCLONE_CONF}/rclone.conf"
 
+rclone copy "${HOME}/git_slurm_ui/slurmout_${SLURM_JOB_ID}" "gdrive:slurm_jobs/${TIME}" --config "${RCLONE_CONF}/rclone.conf"
+
 cd /tmp
 rm -rf "${WORKDIR}"
+rm -rf "${HOME}/git_slurm_ui/slurmout_${SLURM_JOB_ID}"
 rm -rf "${RCLONE_CONF}"
